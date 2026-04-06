@@ -22,7 +22,9 @@ def detect_and_align_face(frame):
     if face_tensor is None:
         return None
 
-    face_np = face_tensor.permute(1, 2, 0).int().cpu().numpy()
+    # Keep float values from MTCNN. Casting to int collapses information and
+    # can make different faces look artificially similar to the recognizer.
+    face_np = face_tensor.permute(1, 2, 0).cpu().numpy()
     return face_np
 
 def get_embedding(face_img):
@@ -30,7 +32,7 @@ def get_embedding(face_img):
     face_img = face_img.astype('float32') / 255.0
     face_img = np.expand_dims(face_img, axis=0)
     embedding = model.calc_emb(face_img[0])
-    return embedding
+    return np.asarray(embedding).flatten()
 
 def mark_attendance(student_name):
     now = datetime.now()
