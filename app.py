@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from glob import glob
 from datetime import datetime
+from pathlib import Path
 from arcface import ArcFace
 from facenet_pytorch import MTCNN
 from scipy.spatial.distance import cosine
@@ -12,8 +13,32 @@ from scipy.spatial.distance import cosine
 model = ArcFace.ArcFace(model_path="model.tflite")
 mtcnn = MTCNN(image_size=112, margin=0, keep_all=False, post_process=False)
 
-facebank = np.load('facebank_embeddings.npy')
-student_names = np.load('student_names.npy')
+def load_facebank_and_names():
+    candidate_pairs = [
+        ("facebank_embeddings2.npy", "student_names2.npy"),
+        ("facebank_embeddings.npy", "student_names.npy"),
+    ]
+    for emb_path, names_path in candidate_pairs:
+        if Path(emb_path).exists() and Path(names_path).exists():
+            facebank_arr = np.load(emb_path)
+            names_arr = np.load(names_path)
+            if len(facebank_arr) != len(names_arr):
+                raise ValueError(
+                    f"Count mismatch in {emb_path} and {names_path}: "
+                    f"{len(facebank_arr)} vs {len(names_arr)}"
+                )
+            print(
+                f"Loaded face bank: {emb_path} shape={facebank_arr.shape}, "
+                f"labels: {names_path} shape={names_arr.shape}"
+            )
+            return facebank_arr, names_arr
+    raise FileNotFoundError(
+        "Could not find face bank files. Expected either "
+        "(facebank_embeddings2.npy, student_names2.npy) or "
+        "(facebank_embeddings.npy, student_names.npy)."
+    )
+
+facebank, student_names = load_facebank_and_names()
 
 def detect_and_align_face(frame):
     img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
