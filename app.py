@@ -10,7 +10,7 @@ from scipy.spatial.distance import cosine
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # print(device)
 model = ArcFace.ArcFace(model_path="model.tflite")
-mtcnn = MTCNN(image_size=112, margin=0, keep_all=False)
+mtcnn = MTCNN(image_size=112, margin=0, keep_all=False, post_process=False)
 
 facebank = np.load('facebank_embeddings.npy')
 student_names = np.load('student_names.npy')
@@ -22,16 +22,14 @@ def detect_and_align_face(frame):
     if face_tensor is None:
         return None
 
-    # Keep float values from MTCNN. Casting to int collapses information and
-    # can make different faces look artificially similar to the recognizer.
-    face_np = face_tensor.permute(1, 2, 0).cpu().numpy()
-    return face_np
+    # MTCNN gives CHW RGB crop; convert to HWC BGR for ArcFace wrapper.
+    face_rgb = face_tensor.permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+    face_bgr = cv2.cvtColor(face_rgb, cv2.COLOR_RGB2BGR)
+    return face_bgr
 
 def get_embedding(face_img):
-    face_img = cv2.resize(face_img, (112, 112))
-    face_img = face_img.astype('float32') / 255.0
-    face_img = np.expand_dims(face_img, axis=0)
-    embedding = model.calc_emb(face_img[0])
+    # ArcFace wrapper already handles RGB conversion, resize, and normalization.
+    embedding = model.calc_emb(face_img)
     return np.asarray(embedding).flatten()
 
 def mark_attendance(student_name):

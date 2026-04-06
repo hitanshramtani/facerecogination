@@ -26,12 +26,12 @@ def parse_args():
     )
     parser.add_argument(
         "--embeddings-out",
-        default="facebank_embeddings.npy",
+        default="facebank_embeddings2.npy",
         help="Output path for face embeddings (.npy).",
     )
     parser.add_argument(
         "--labels-out",
-        default="student_names.npy",
+        default="student_names2.npy",
         help="Output path for student labels (.npy).",
     )
     return parser.parse_args()
@@ -42,12 +42,11 @@ def detect_and_align_face(image_bgr, mtcnn):
     face_tensor = mtcnn(img_rgb)
     if face_tensor is None:
         return None
-    return face_tensor.permute(1, 2, 0).cpu().numpy()
+    face_rgb = face_tensor.permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+    return cv2.cvtColor(face_rgb, cv2.COLOR_RGB2BGR)
 
 
 def get_embedding(face_img, face_model):
-    face_img = cv2.resize(face_img, (112, 112))
-    face_img = face_img.astype("float32") / 255.0
     embedding = face_model.calc_emb(face_img)
     return np.asarray(embedding).flatten()
 
@@ -69,7 +68,7 @@ def main():
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
-    mtcnn = MTCNN(image_size=112, margin=0, keep_all=False)
+    mtcnn = MTCNN(image_size=112, margin=0, keep_all=False, post_process=False)
     face_model = ArcFace.ArcFace(model_path=str(model_path))
 
     facebank = []
